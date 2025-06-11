@@ -11,6 +11,7 @@
         "prepare": "husky"
     },
     "dependencies": {
+        "@auth0/nextjs-auth0": "^4.6.1",
         "@hookform/error-message": "^2.0.1",
         "@hookform/resolvers": "^3.9.0",
         "@radix-ui/react-accordion": "^1.2.0",

@@ -19,20 +19,19 @@ export default function RootLayout({
     children: React.ReactNode
 }>) {
     return (
-            <html lang="en">
-                <body className={jakarta.className}>
-                    <ThemeProvider
-                        attribute="class"
-                        defaultTheme="dark"
-                        disableTransitionOnChange
-                    >
-                        <ReduxProvider>
-                            <ReactQueryProvider>{children}</ReactQueryProvider>
-                        </ReduxProvider>
-                        <Toaster />
-                    </ThemeProvider>
-                </body>
-            </html>
-        
+        <html lang="en">
+            <body className={jakarta.className}>
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="dark"
+                    disableTransitionOnChange
+                >
+                    <ReduxProvider>
+                        <ReactQueryProvider>{children}</ReactQueryProvider>
+                    </ReduxProvider>
+                    <Toaster />
+                </ThemeProvider>
+            </body>
+        </html>
     )
 }
