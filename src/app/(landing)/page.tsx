@@ -1,22 +1,17 @@
-import { login, logout } from "@/actions/auth"
-import { auth0 } from "@/lib/auth0"
+"use client"
 
-export default async function Home() {
-    const session = await auth0.getSession()
+import { useAuth } from "@/providers/AuthProvider"
+import Link from "next/link"
 
-    console.log("SESSION: ", session)
+export default function Home() {
+    const { user, token } = useAuth()
+
+    console.log("USER: ", user)
+    console.log("TOKEN: ", token)
 
     return (
         <div>
-            {!session ? (
-                <form action={login}>
-                    <button>login</button>
-                </form>
-            ) : (
-                <form action={logout}>
-                    <button>logout</button>
-                </form>
-            )}
+            {!user ? <Link href="/login">login</Link> : <button>logout</button>}
         </div>
     )
 }

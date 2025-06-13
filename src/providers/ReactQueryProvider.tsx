@@ -2,12 +2,12 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-type ReactQueryProviderProps = {
+interface IReactQueryProviderProps {
     children: React.ReactNode
 }
 
 const client = new QueryClient()
 
-export const ReactQueryProvider = ({ children }: ReactQueryProviderProps) => {
+export const ReactQueryProvider = ({ children }: IReactQueryProviderProps) => {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
