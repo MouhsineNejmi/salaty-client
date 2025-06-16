@@ -1,6 +1,5 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
@@ -19,29 +18,32 @@ import { toast } from "@/components/ui/use-toast"
 import { ApiError } from "@/lib/error"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/providers/AuthProvider"
-import { LoginDTO, loginSchema } from "@/validation/auth"
+import { SignupDTO } from "@/validation/auth"
 
-export function LoginForm({
+export function SignupForm({
     className,
     ...props
 }: React.ComponentProps<"div">) {
-    const { login, isLoginLoading } = useAuth()
+    const { signup, isSignupLoading } = useAuth()
     const {
-        register,
+        register: formRegister,
         handleSubmit,
         formState: { errors },
-    } = useForm<LoginDTO>({
-        resolver: zodResolver(loginSchema),
-        defaultValues: { email: "", password: "" },
+    } = useForm<SignupDTO>({
+        defaultValues: { username: "", email: "", password: "" },
         mode: "onBlur",
     })
     const router = useRouter()
 
-    const onSubmit = async (data: LoginDTO) => {
+    const onSubmit = async (data: SignupDTO) => {
         try {
-            await login(data.email as string, data.password as string)
+            await signup(
+                data.username,
+                data.email as string,
+                data.password as string,
+            )
 
-            toast({ description: "LOGIN SUCCESS!" })
+            toast({ description: "SIGNUP SUCCESS!" })
             router.push("/select-store")
         } catch (error: any) {
             const apiError = error as ApiError
@@ -51,7 +53,7 @@ export function LoginForm({
                 "Something went wrong. Please try again later!"
 
             toast({
-                title: "Login Failed",
+                title: "SIGNUP FAILED!",
                 description: message,
                 variant: "destructive",
             })
@@ -94,10 +96,22 @@ export function LoginForm({
                                 <div className="grid gap-3">
                                     <FormGenerator
                                         inputType="input"
+                                        type="text"
+                                        label="Username"
+                                        placeholder="john.doe"
+                                        register={formRegister}
+                                        name="username"
+                                        errors={errors}
+                                    />
+                                </div>
+
+                                <div className="grid gap-3">
+                                    <FormGenerator
+                                        inputType="input"
                                         type="email"
                                         label="Email"
                                         placeholder="m@example.com"
-                                        register={register}
+                                        register={formRegister}
                                         name="email"
                                         errors={errors}
                                     />
@@ -108,7 +122,7 @@ export function LoginForm({
                                         type="password"
                                         label="Password"
                                         placeholder="Enter your password"
-                                        register={register}
+                                        register={formRegister}
                                         name="password"
                                         errors={errors}
                                     />
@@ -122,18 +136,20 @@ export function LoginForm({
                                 <Button
                                     type="submit"
                                     className="w-full"
-                                    disabled={isLoginLoading}
+                                    disabled={isSignupLoading}
                                 >
-                                    {isLoginLoading ? "Logging in..." : "Login"}
+                                    {isSignupLoading
+                                        ? "Registering..."
+                                        : "Register"}
                                 </Button>
                             </div>
                             <div className="text-center text-sm">
-                                Don&apos;t have an account?{" "}
+                                Already have an account?{" "}
                                 <Link
-                                    href="/sign-up"
+                                    href="/login"
                                     className="underline underline-offset-4"
                                 >
-                                    Sign up
+                                    Login
                                 </Link>
                             </div>
                         </div>

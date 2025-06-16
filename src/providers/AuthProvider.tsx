@@ -7,14 +7,17 @@ import { createContext, ReactNode, useContext, useMemo } from "react"
 
 import { IAuthResponse } from "@/@types/auth"
 import { IUser } from "@/@types/user"
+import { ACCESS_TOKEN_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from "@/constants"
 import { apiFetch } from "@/lib/api-client"
 
 interface IAuthContext {
     user: IUser | null
     login: (email: string, password: string) => Promise<void>
-    register: (email: string, password: string) => Promise<void>
+    signup: (username: string, email: string, password: string) => Promise<void>
     logout: () => void
+    isLoading: boolean
     isLoginLoading: boolean
+    isSignupLoading: boolean
 }
 
 const AuthContext = createContext<IAuthContext | undefined>(undefined)
@@ -23,7 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const queryClient = useQueryClient()
     const router = useRouter()
 
-    const { data: user } = useQuery<IUser>({
+    const { data: user, isLoading: isLoadingUser } = useQuery<IUser>({
         queryKey: ["auth", "me"],
         queryFn: () => apiFetch<IUser>("/auth/me"),
         retry: false,
@@ -31,14 +34,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         staleTime: 1000 * 60 * 5, // 5 minutes
     })
 
-    const registerMutation = useMutation({
-        mutationFn: async (params: { email: string; password: string }) => {
-            const response = await apiFetch<IAuthResponse>("auth/register", {
+    const signupMutation = useMutation({
+        mutationFn: async (params: {
+            username: string
+            email: string
+            password: string
+        }) => {
+            const response = await apiFetch<IAuthResponse>("/auth/register", {
                 method: "POST",
                 body: JSON.stringify(params),
                 retryOn401: false,
             })
-            Cookies.set("accessToken", response.accessToken)
+            Cookies.set("accessToken", response.accessToken, {
+                expires: ACCESS_TOKEN_EXPIRES_IN,
+            })
+            Cookies.set("refreshToken", response.user.refreshToken!, {
+                expires: REFRESH_TOKEN_EXPIRES_IN,
+            })
 
             return response
         },
@@ -54,7 +66,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 body: JSON.stringify(params),
                 retryOn401: false,
             })
-            Cookies.set("accessToken", res.accessToken, { expires: 0.01 })
+            Cookies.set("accessToken", res.accessToken, {
+                expires: ACCESS_TOKEN_EXPIRES_IN,
+            })
+            Cookies.set("refreshToken", res.user.refreshToken!, {
+                expires: REFRESH_TOKEN_EXPIRES_IN,
+            })
             return res.user
         },
         onSuccess: (user) => {
@@ -62,8 +79,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
     })
 
-    const register = async (email: string, password: string) => {
-        await registerMutation.mutateAsync({ email, password })
+    const signup = async (
+        username: string,
+        email: string,
+        password: string,
+    ) => {
+        await signupMutation.mutateAsync({ username, email, password })
     }
 
     const login = async (email: string, password: string) => {
@@ -73,19 +94,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const logout = async () => {
         await apiFetch("/auth/logout", { method: "POST", retryOn401: false })
         Cookies.remove("accessToken")
+        Cookies.remove("refreshToken")
         queryClient.invalidateQueries({ queryKey: ["auth", "me"] })
         router.push("/login")
     }
+
+    const isLoading =
+        loginMutation.isPending || signupMutation.isPending || isLoadingUser
 
     const value = useMemo<IAuthContext>(() => {
         return {
             user: user ?? null,
             login,
-            register,
+            signup,
             logout,
+            isLoading,
+            isSignupLoading: signupMutation.isPending,
             isLoginLoading: loginMutation.isPending,
         }
-    }, [user, loginMutation.isPending])
+    }, [user, isLoading])
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

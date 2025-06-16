@@ -1,3 +1,4 @@
+import { ACCESS_TOKEN_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from "@/constants"
 import Cookies from "js-cookie"
 import { ApiError } from "./error"
 
@@ -20,7 +21,7 @@ export async function apiFetch<T>(
         headers: {
             "Content-Type": "application/json",
             ...(rest.headers ?? {}),
-            Authorization: `Bearer ${Cookies.get("refreshToken") ?? ""}`,
+            Authorization: `Bearer ${Cookies.get("accessToken") ?? ""}`,
         },
         ...rest,
     })
@@ -54,15 +55,26 @@ export async function apiFetch<T>(
  *   3) return a fresh access token + user (optional)
  */
 export async function refreshAccessToken(): Promise<boolean> {
+    const refreshToken = Cookies.get("refreshToken")
+    if (!refreshToken) return false
+
     try {
         const res = await fetch(`${API_BASE}/auth/refresh`, {
             method: "POST",
             credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
         })
 
         if (!res.ok) return false
-        const { accessToken } = await res.json()
-        Cookies.set("accessToken", accessToken, { expires: 0.01 }) // ~15 min
+        const { accessToken, refreshToken } = await res.json()
+        Cookies.set("accessToken", accessToken, {
+            expires: ACCESS_TOKEN_EXPIRES_IN,
+        })
+        Cookies.set("refreshToken", refreshToken, {
+            expires: REFRESH_TOKEN_EXPIRES_IN,
+        })
         return true
     } catch {
         return false
