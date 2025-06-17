@@ -8,7 +8,8 @@ import { createContext, ReactNode, useContext, useMemo } from "react"
 import { IAuthResponse } from "@/@types/auth"
 import { IUser } from "@/@types/user"
 import { ACCESS_TOKEN_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from "@/constants"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/axios-client"
+import { ApiError } from "@/lib/error"
 
 interface IAuthContext {
     user: IUser | null
@@ -26,10 +27,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const queryClient = useQueryClient()
     const router = useRouter()
 
-    const { data: user, isLoading: isLoadingUser } = useQuery<IUser>({
+    const { data: user, isLoading: isLoadingUser } = useQuery<IUser | null>({
         queryKey: ["auth", "me"],
-        queryFn: () => apiFetch<IUser>("/auth/me"),
+        queryFn: async () => {
+            try {
+                return await apiFetch<IUser>("/auth/me")
+            } catch (error) {
+                if (error instanceof ApiError && error.status === 401) {
+                    return null
+                }
+                throw error
+            }
+        },
         retry: false,
+        enabled: !!Cookies.get("accessToken"),
         refetchOnWindowFocus: false,
         staleTime: 1000 * 60 * 5, // 5 minutes
     })
@@ -42,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }) => {
             const response = await apiFetch<IAuthResponse>("/auth/register", {
                 method: "POST",
-                body: JSON.stringify(params),
+                data: params,
                 retryOn401: false,
             })
             Cookies.set("accessToken", response.accessToken, {
@@ -63,7 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mutationFn: async (params: { email: string; password: string }) => {
             const res = await apiFetch<IAuthResponse>("/auth/login", {
                 method: "POST",
-                body: JSON.stringify(params),
+                data: params,
                 retryOn401: false,
             })
             Cookies.set("accessToken", res.accessToken, {

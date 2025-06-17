@@ -1,4 +1,4 @@
-import { ACCESS_TOKEN_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from "@/constants"
+import { ACCESS_TOKEN_EXPIRES_IN } from "@/constants"
 import Cookies from "js-cookie"
 import { ApiError } from "./error"
 
@@ -16,6 +16,8 @@ export async function apiFetch<T>(
 ): Promise<T> {
     const { retryOn401, ...rest } = options
 
+    console.log("API FETCH Access token:", Cookies.get("accessToken"))
+
     const res = await fetch(`${API_BASE}${endpoint}`, {
         credentials: "include",
         headers: {
@@ -25,6 +27,12 @@ export async function apiFetch<T>(
         },
         ...rest,
     })
+
+    if (!res.ok) {
+        const data = await res.json()
+        const message = data?.error?.message || data?.message || res.statusText
+        throw new ApiError(message, res.status, data)
+    }
 
     if (res.status === 401 && retryOn401) {
         const ok = await refreshAccessToken()
@@ -40,11 +48,6 @@ export async function apiFetch<T>(
         // handle invalid/missing JSON
     }
 
-    if (!res.ok) {
-        const message = data?.error?.message || data?.message || res.statusText
-        throw new ApiError(message, res.status, data)
-    }
-
     return data as Promise<T>
 }
 
@@ -55,8 +58,9 @@ export async function apiFetch<T>(
  *   3) return a fresh access token + user (optional)
  */
 export async function refreshAccessToken(): Promise<boolean> {
-    const refreshToken = Cookies.get("refreshToken")
-    if (!refreshToken) return false
+    const userRefreshToken = Cookies.get("refreshToken")
+
+    if (!userRefreshToken) return false
 
     try {
         const res = await fetch(`${API_BASE}/auth/refresh`, {
@@ -65,15 +69,15 @@ export async function refreshAccessToken(): Promise<boolean> {
             headers: {
                 "Content-Type": "application/json",
             },
+            body: JSON.stringify({
+                refreshToken: userRefreshToken,
+            }),
         })
 
         if (!res.ok) return false
-        const { accessToken, refreshToken } = await res.json()
+        const { accessToken } = await res.json()
         Cookies.set("accessToken", accessToken, {
             expires: ACCESS_TOKEN_EXPIRES_IN,
-        })
-        Cookies.set("refreshToken", refreshToken, {
-            expires: REFRESH_TOKEN_EXPIRES_IN,
         })
         return true
     } catch {
